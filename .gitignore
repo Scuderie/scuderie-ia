@@ -1,0 +1,28 @@
+# --- Python & Poetry ---
+__pycache__/
+*.pyc
+.venv/
+.env
+poetry.lock
+# Nota: poetry.lock VA committato se vuoi versioni esatte, 
+# ma a volte si ignora in dev rapido. Per ora COMMITTALO (è best practice).
+
+# --- IDE & OS ---
+.DS_Store
+.vscode/
+.idea/
+
+# --- Database Docker ---
+# Ignoriamo i dati fisici del DB, altrimenti carichi gigabyte su GitHub!
+postgres_data/
+
+# --- AI Artifacts (Modelli pesanti) ---
+# I modelli addestrati (.pt, .onnx) possono pesare GB. 
+# Non vanno su Git. In futuro useremo DVC o S3.
+src/ml/artifacts/
+*.pt
+*.pth
+*.onnx
+
+# --- Jupyter Notebook checkpoinst ---
+.ipynb_checkpoints

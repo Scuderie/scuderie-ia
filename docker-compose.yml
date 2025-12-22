@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: scuderie_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: scuderie_user
+      POSTGRES_PASSWORD: scuderie_password
+      POSTGRES_DB: scuderie_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_data:
