@@ -1,28 +1,19 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
 
-# --- MODELLI DI INPUT (Cosa ci manda Laravel) ---
-
+# Modello per ricevere i dati (Ingest)
 class DocumentIngestRequest(BaseModel):
-    """
-    Payload per caricare un nuovo documento.
-    Laravel ci manderà questi dati.
-    """
-    source_type: str        # es. "ticket_assistenza", "manuale_pdf"
-    source_id: str          # ID del record su Laravel
-    content: str            # Il testo da imparare
-    author: Optional[str] = None
-    created_at_laravel: Optional[datetime] = None
+    source_id: str
+    source_type: str
+    content: str
 
-# --- MODELLI DI OUTPUT (Come rispondiamo) ---
-
+# Modello per il singolo risultato trovato
 class SearchResultItem(BaseModel):
-    id: int
-    content_chunk: str      # Il pezzo di testo trovato
-    similarity_score: float # Quanto è pertinente (0-1)
-    source: str
+    id: str
+    content: str
+    score: float  # <--- Questo è il campo che probabilmente mancava!
 
+# Modello per la risposta completa della ricerca
 class SearchResponse(BaseModel):
     query: str
     results: List[SearchResultItem]
