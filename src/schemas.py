@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List  # <--- Ho rimosso ", Optional"
 
 # Modello per ricevere i dati (Ingest)
 class DocumentIngestRequest(BaseModel):
@@ -11,7 +11,7 @@ class DocumentIngestRequest(BaseModel):
 class SearchResultItem(BaseModel):
     id: str
     content: str
-    score: float  # <--- Questo è il campo che probabilmente mancava!
+    score: float
 
 # Modello per la risposta completa della ricerca
 class SearchResponse(BaseModel):
