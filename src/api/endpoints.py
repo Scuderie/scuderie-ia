@@ -66,8 +66,8 @@ async def search_knowledge(
     for doc in documents:
         print(f"   --> Trovato: {doc.source_id}")
         results_list.append(SearchResultItem(
-            id=doc.source_id,
-            content=doc.content,
+            id=str(doc.source_id), #Agiunto str() per risoluzioni errori di tipizzazione git
+            content=str(doc.content), #Agiunto str() per risoluzioni errori di tipizzazione git
             score=0.99 # Per ora fisso, nel prossimo step calcoleremo la % esatta
         ))
     

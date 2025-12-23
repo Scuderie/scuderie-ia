@@ -9,8 +9,12 @@ DATABASE_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRE
 engine = create_async_engine(DATABASE_URL, echo=True)
 
 # La "Sessione" è il periodo di tempo in cui parliamo col DB
+# La fabbrica di sessioni
+# Aggiungiamo # type: ignore per dire a MyPy di fidarsi di noi
 AsyncSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
+    bind=engine, # type: ignore
+    class_=AsyncSession,
+    expire_on_commit=False
 )
 
 Base = declarative_base()

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, func
-from pgvector.sqlalchemy import Vector
+from pgvector.sqlalchemy import Vector #type: ignore
 from src.database import Base
 
 class Document(Base):
