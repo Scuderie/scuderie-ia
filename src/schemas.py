@@ -18,3 +18,4 @@ class SearchResponse(BaseModel):
     query: str
     results: List[SearchResultItem]
     processing_time: float
+    
