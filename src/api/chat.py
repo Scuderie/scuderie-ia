@@ -8,7 +8,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from src.ml.services.llm import llm_service
 from src.ml.services.embedding import embedding_service
@@ -246,7 +245,7 @@ async def chat_stream(
                 result = await db.execute(stmt)
                 session = result.scalar_one_or_none()
                 if not session:
-                    yield f"data: [ERROR] Sessione non trovata\n\n"
+                    yield "data: [ERROR] Sessione non trovata\n\n"
                     return
             else:
                 title = message[:50] + "..." if len(message) > 50 else message
