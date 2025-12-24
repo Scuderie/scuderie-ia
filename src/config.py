@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     
     # LLM Configuration (Ollama + Llama 3.1)
     OLLAMA_HOST: str = "http://localhost:11434"
-    LLM_MODEL: str = "llama3.1:8b-instruct-q4_K_M"
+    LLM_MODEL: str = "llama3.1:latest"
     LLM_TEMPERATURE: float = 0.1  # Basso per RAG (precisione)
     LLM_MAX_TOKENS: int = 2048
     
