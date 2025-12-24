@@ -2,7 +2,7 @@
 Chat API Endpoints
 Gestisce conversazioni con l'LLM integrato con RAG e persistenza storico
 """
-from uuid import UUID
+from uuid import UUID as PyUUID
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -22,28 +22,28 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     """Richiesta di chat"""
     message: str
-    session_id: UUID | None = None  # Se None, crea nuova sessione
+    session_id: PyUUID | None = None  # Se None, crea nuova sessione
     use_rag: bool = True
     system_prompt: str | None = None
 
 
 class ChatResponse(BaseModel):
     """Risposta della chat"""
-    session_id: UUID
+    session_id: PyUUID
     response: str
     rag_sources: list[str] = []
 
 
 class SessionInfo(BaseModel):
     """Info sessione"""
-    id: UUID
+    id: PyUUID
     title: str | None
     message_count: int
 
 
 class MessageInfo(BaseModel):
     """Info messaggio"""
-    id: UUID
+    id: PyUUID
     role: str
     content: str
 
@@ -65,8 +65,8 @@ async def list_sessions(db: AsyncSession = Depends(get_db)) -> list[SessionInfo]
         msg_count = len(msg_result.scalars().all())
         
         session_list.append(SessionInfo(
-            id=s.id,
-            title=s.title,
+            id=PyUUID(str(s.id)),
+            title=str(s.title) if s.title else None,
             message_count=msg_count
         ))
     
@@ -81,12 +81,12 @@ async def create_session(db: AsyncSession = Depends(get_db)) -> SessionInfo:
     await db.commit()
     await db.refresh(new_session)
     
-    return SessionInfo(id=new_session.id, title=new_session.title, message_count=0)
+    return SessionInfo(id=PyUUID(str(new_session.id)), title=str(new_session.title) if new_session.title else None, message_count=0)
 
 
 @router.get("/sessions/{session_id}/history", summary="Storico messaggi")
 async def get_session_history(
-    session_id: UUID, 
+    session_id: PyUUID, 
     db: AsyncSession = Depends(get_db)
 ) -> list[MessageInfo]:
     """Restituisce tutti i messaggi di una sessione."""
@@ -98,13 +98,13 @@ async def get_session_history(
     messages = result.scalars().all()
     
     return [
-        MessageInfo(id=m.id, role=str(m.role), content=str(m.content))
+        MessageInfo(id=PyUUID(str(m.id)), role=str(m.role), content=str(m.content))
         for m in messages
     ]
 
 
 @router.delete("/sessions/{session_id}", summary="Elimina sessione")
-async def delete_session(session_id: UUID, db: AsyncSession = Depends(get_db)):
+async def delete_session(session_id: PyUUID, db: AsyncSession = Depends(get_db)):
     """Elimina una sessione e tutti i suoi messaggi (cascade)."""
     stmt = select(ChatSession).where(ChatSession.id == session_id)
     result = await db.execute(stmt)
@@ -218,7 +218,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
         await db.commit()
         
         return ChatResponse(
-            session_id=session.id,
+            session_id=PyUUID(str(session.id)),
             response=response_text,
             rag_sources=rag_sources
         )
@@ -230,7 +230,7 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
 @router.get("/chat/stream", summary="Chat con streaming (SSE)")
 async def chat_stream(
     message: str, 
-    session_id: UUID | None = None,
+    session_id: PyUUID | None = None,
     use_rag: bool = True
 ):
     """
@@ -328,7 +328,7 @@ async def chat_stream(
 class StreamChatRequest(BaseModel):
     """Richiesta per streaming POST"""
     message: str
-    session_id: UUID | None = None
+    session_id: PyUUID | None = None
     use_rag: bool = True
 
 
