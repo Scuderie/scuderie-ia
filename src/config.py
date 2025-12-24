@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.1  # Basso per RAG (precisione)
     LLM_MAX_TOKENS: int = 2048
     
+    # RAG Configuration
+    RAG_SIMILARITY_THRESHOLD: float = 0.5  # Minima similarità per includere (0-1)
+    RAG_TOP_K: int = 3  # Massimo documenti da restituire
+    
     # --- MODIFICATO PER COMBACIARE COL VOSTRO DOCKER ---
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_USER: str = "scuderie_user"      # Era "postgres"

@@ -53,23 +53,34 @@ async def search_knowledge(
     print(f"🔎 Domanda utente: {payload.content}")
     query_vector = embedding_service.get_embedding(payload.content)
     
-    # 2. RICERCA NEL DB (La Magia)
-    # Cerchiamo i 3 documenti con il vettore più simile (distanza coseno minore)
-    # L'operatore 'cosine_distance' fa tutto il lavoro matematico pesante
-    stmt = select(Document).order_by(Document.embedding.cosine_distance(query_vector)).limit(3)
+    # 2. RICERCA NEL DB con calcolo distanza
+    # cosine_distance: 0 = identico, 2 = opposto
+    # similarity = 1 - distance (range: -1 a 1, ma per vettori normalizzati: 0 a 1)
+    from src.config import settings
+    
+    distance_col = Document.embedding.cosine_distance(query_vector).label("distance")
+    stmt = select(Document, distance_col).order_by(distance_col).limit(settings.RAG_TOP_K)
     
     result = await db.execute(stmt)
-    documents = result.scalars().all()
+    rows = result.all()
     
-    # 3. Formattiamo i risultati
+    # 3. Formattiamo i risultati con score reale e threshold
     results_list = []
-    for doc in documents:
-        print(f"   --> Trovato: {doc.source_id}")
-        results_list.append(SearchResultItem(
-            id=str(doc.source_id), #Agiunto str() per risoluzioni errori di tipizzazione 
-            content=str(doc.content), #Agiunto str() per risoluzioni errori di tipizzazione 
-            score=0.99 # Per ora fisso, nel prossimo step calcoleremo la % esatta
-        ))
+    for row in rows:
+        doc = row[0]  # Document object
+        distance = float(row[1])  # Distance value
+        similarity = round(1.0 - distance, 4)  # Convert to similarity
+        
+        # Applica threshold
+        if similarity >= settings.RAG_SIMILARITY_THRESHOLD:
+            print(f"   ✅ {doc.source_id} (similarity: {similarity:.2%})")
+            results_list.append(SearchResultItem(
+                id=str(doc.source_id),
+                content=str(doc.content),
+                score=similarity
+            ))
+        else:
+            print(f"   ❌ {doc.source_id} sotto threshold (similarity: {similarity:.2%})")
     
     process_time = time.time() - start_time
     

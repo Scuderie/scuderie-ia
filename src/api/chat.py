@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from src.ml.services.llm import llm_service
 from src.ml.services.embedding import embedding_service
+from src.ml.services.query_rewriter import rewrite_query
 from src.database import get_db, AsyncSessionLocal
 from src.models import Document, ChatSession, ChatMessage
 
@@ -178,24 +179,34 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
         for m in history_messages[:-1]  # Escludi l'ultimo (è la domanda corrente)
     ]
     
-    # 4. RAG: Cerca documenti rilevanti
+    # 4. RAG: Cerca documenti rilevanti con score e threshold
     context_docs: list[str] = []
     rag_sources: list[str] = []
     
     if request.use_rag:
         try:
-            query_vector = embedding_service.get_embedding(request.message)
+            from src.config import settings
             
-            stmt = select(Document).order_by(
-                Document.embedding.cosine_distance(query_vector)
-            ).limit(3)
+            # Query rewriting per query ambigue
+            search_query = await rewrite_query(request.message, chat_history)
+            query_vector = embedding_service.get_embedding(search_query)
+            
+            # Query con calcolo distanza
+            distance_col = Document.embedding.cosine_distance(query_vector).label("distance")
+            stmt = select(Document, distance_col).order_by(distance_col).limit(settings.RAG_TOP_K)
             result = await db.execute(stmt)
-            documents = result.scalars().all()
+            rows = result.all()
             
-            for doc in documents:
-                context_docs.append(str(doc.content))
-                rag_sources.append(str(doc.source_id))
+            for row in rows:
+                doc = row[0]
+                distance = float(row[1])
+                similarity = 1.0 - distance
                 
+                # Solo documenti sopra threshold
+                if similarity >= settings.RAG_SIMILARITY_THRESHOLD:
+                    context_docs.append(str(doc.content))
+                    rag_sources.append(f"{doc.source_id}:{similarity:.2%}")
+                    
         except Exception as e:
             print(f"⚠️ RAG fallito, procedo senza contesto: {e}")
     
@@ -271,18 +282,22 @@ async def chat_stream(
                 for m in history_messages[:-1]
             ]
             
-            # RAG
+            # RAG con score e threshold
             context_docs: list[str] = []
             if use_rag:
                 try:
+                    from src.config import settings
                     query_vector = embedding_service.get_embedding(message)
-                    stmt = select(Document).order_by(
-                        Document.embedding.cosine_distance(query_vector)
-                    ).limit(3)
+                    distance_col = Document.embedding.cosine_distance(query_vector).label("distance")
+                    stmt = select(Document, distance_col).order_by(distance_col).limit(settings.RAG_TOP_K)
                     result = await db.execute(stmt)
-                    documents = result.scalars().all()
-                    for doc in documents:
-                        context_docs.append(str(doc.content))
+                    rows = result.all()
+                    for row in rows:
+                        doc = row[0]
+                        distance = float(row[1])
+                        similarity = 1.0 - distance
+                        if similarity >= settings.RAG_SIMILARITY_THRESHOLD:
+                            context_docs.append(str(doc.content))
                 except Exception as e:
                     print(f"⚠️ RAG fallito: {e}")
             
