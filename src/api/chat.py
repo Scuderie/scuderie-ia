@@ -55,24 +55,33 @@ class MessageInfo(BaseModel):
 @router.get("/sessions", summary="Lista tutte le sessioni")
 async def list_sessions(db: AsyncSession = Depends(get_db)) -> list[SessionInfo]:
     """Restituisce tutte le sessioni di chat ordinate per data."""
-    stmt = select(ChatSession).order_by(ChatSession.created_at.desc())
+    from sqlalchemy import func
+    
+    # Subquery per contare messaggi per sessione (fix N+1)
+    msg_count_subq = (
+        select(ChatMessage.session_id, func.count().label("msg_count"))
+        .group_by(ChatMessage.session_id)
+        .subquery()
+    )
+    
+    # Query principale con LEFT JOIN
+    stmt = (
+        select(ChatSession, func.coalesce(msg_count_subq.c.msg_count, 0).label("count"))
+        .outerjoin(msg_count_subq, ChatSession.id == msg_count_subq.c.session_id)
+        .order_by(ChatSession.created_at.desc())
+    )
+    
     result = await db.execute(stmt)
-    sessions = result.scalars().all()
+    rows = result.all()
     
-    session_list = []
-    for s in sessions:
-        # Conta messaggi
-        msg_stmt = select(ChatMessage).where(ChatMessage.session_id == s.id)
-        msg_result = await db.execute(msg_stmt)
-        msg_count = len(msg_result.scalars().all())
-        
-        session_list.append(SessionInfo(
-            id=PyUUID(str(s.id)),
-            title=str(s.title) if s.title else None,
-            message_count=msg_count
-        ))
-    
-    return session_list
+    return [
+        SessionInfo(
+            id=PyUUID(str(row[0].id)),
+            title=str(row[0].title) if row[0].title else None,
+            message_count=int(row[1])
+        )
+        for row in rows
+    ]
 
 
 @router.post("/sessions", summary="Crea nuova sessione")

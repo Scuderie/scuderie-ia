@@ -7,13 +7,17 @@ import uuid
 
 
 class Document(Base):
-    """Documento vettorializzato per RAG"""
+    """Documento vettorializzato per RAG (supporta chunking)"""
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
     source_id = Column(String, index=True)      # Es: "doc_01"
     source_type = Column(String)                # Es: "manuale_pdf"
     content = Column(Text)                      # Il testo originale
+    
+    # Chunking support
+    chunk_index = Column(Integer, default=0)    # Indice del chunk (0 = originale)
+    parent_id = Column(String, nullable=True)   # ID documento padre se chunk
     
     # Vettore a 384 dimensioni (per il modello MiniLM)
     embedding = Column(Vector(384))

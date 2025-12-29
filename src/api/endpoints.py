@@ -27,30 +27,41 @@ async def ingest_document(
     payload: DocumentIngestRequest, 
     db: AsyncSession = Depends(get_db)
 ):
-    """Ingest a document into the knowledge base with embedding."""
+    """Ingest a document into the knowledge base with automatic chunking."""
+    from src.ml.services.chunker import chunk_text
+    
     try:
         logger.info(f"Ingest started: {payload.source_id}")
         
-        vector = embedding_service.get_embedding(payload.content)
+        # Chunk document if too long
+        chunks = chunk_text(payload.content, max_tokens=500, overlap=50)
         
-        new_doc = Document(
-            source_id=payload.source_id,
-            source_type=payload.source_type,
-            content=payload.content,
-            embedding=vector
-        )
+        saved_ids = []
+        for idx, chunk_content in enumerate(chunks):
+            vector = embedding_service.get_embedding(chunk_content)
+            
+            new_doc = Document(
+                source_id=f"{payload.source_id}_chunk_{idx}" if len(chunks) > 1 else payload.source_id,
+                source_type=payload.source_type,
+                content=chunk_content,
+                chunk_index=idx,
+                parent_id=payload.source_id if len(chunks) > 1 else None,
+                embedding=vector
+            )
+            
+            db.add(new_doc)
+            await db.commit()
+            await db.refresh(new_doc)
+            saved_ids.append(new_doc.id)
         
-        db.add(new_doc)
-        await db.commit()
-        await db.refresh(new_doc)
-        
-        logger.info(f"Document saved: {new_doc.id} ({payload.source_id})")
+        logger.info(f"Document saved: {len(saved_ids)} chunks ({payload.source_id})")
         
         return {
             "status": "success",
-            "db_id": new_doc.id,
+            "db_ids": saved_ids,
             "doc_id": payload.source_id,
-            "message": "Vettorializzato e Salvato nella Memoria a Lungo Termine"
+            "chunks": len(chunks),
+            "message": f"Vettorializzato in {len(chunks)} chunk(s)"
         }
     except Exception as e:
         logger.error(f"Ingest failed: {e}")
