@@ -99,6 +99,7 @@ REGOLE DI RISPOSTA:
             "options": {
                 "temperature": self.temperature,
                 "num_predict": self.max_tokens,
+                "stop": ["<|eot_id|>", "<|start_header_id|>", "<|end_header_id|>"]
             }
         }
         
@@ -135,6 +136,7 @@ REGOLE DI RISPOSTA:
             "options": {
                 "temperature": self.temperature,
                 "num_predict": self.max_tokens,
+                "stop": ["<|eot_id|>", "<|start_header_id|>", "<|end_header_id|>"]
             }
         }
         
