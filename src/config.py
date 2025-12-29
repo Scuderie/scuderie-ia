@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "scuderie_user"      # Era "postgres"
     POSTGRES_PASSWORD: str = "scuderie_password" # Era "password"
     POSTGRES_DB: str = "scuderie_db"          # Era "scuderie_vector_db"
+    
+    # Security
+    API_KEY: str = "scuderie-dev-key-2024"  # Sovrascrivere in .env per produzione
+    API_KEY_HEADER: str = "X-API-Key"
 
     class Config:
         env_file = ".env"

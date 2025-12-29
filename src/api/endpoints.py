@@ -1,21 +1,35 @@
+"""
+Knowledge Base API Endpoints
+Ingest and search documents with authentication
+"""
 import time
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+
 from src.schemas import DocumentIngestRequest, SearchResponse, SearchResultItem
 from src.ml.services.embedding import embedding_service
 from src.database import get_db
 from src.models import Document
+from src.config import settings
+from src.core.logging_config import logger
+from src.core.auth import verify_api_key
 
 router = APIRouter()
 
-@router.post("/ingest", summary="Carica e vettorializza un documento")
+
+@router.post(
+    "/ingest",
+    summary="Carica e vettorializza un documento",
+    dependencies=[Depends(verify_api_key)]
+)
 async def ingest_document(
     payload: DocumentIngestRequest, 
     db: AsyncSession = Depends(get_db)
 ):
+    """Ingest a document into the knowledge base with embedding."""
     try:
-        print(f"--- 🧠 AI ENGINE: Inizio elaborazione doc {payload.source_id} ---")
+        logger.info(f"Ingest started: {payload.source_id}")
         
         vector = embedding_service.get_embedding(payload.content)
         
@@ -30,7 +44,7 @@ async def ingest_document(
         await db.commit()
         await db.refresh(new_doc)
         
-        print(f"💾 Documento salvato nel DB con ID: {new_doc.id}")
+        logger.info(f"Document saved: {new_doc.id} ({payload.source_id})")
         
         return {
             "status": "success",
@@ -39,50 +53,52 @@ async def ingest_document(
             "message": "Vettorializzato e Salvato nella Memoria a Lungo Termine"
         }
     except Exception as e:
-        print(f"❌ ERRORE CRITICO: {e}")
+        logger.error(f"Ingest failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/search", response_model=SearchResponse, summary="Ricerca semantica nel DB")
+
+@router.post(
+    "/search",
+    response_model=SearchResponse,
+    summary="Ricerca semantica nel DB",
+    dependencies=[Depends(verify_api_key)]
+)
 async def search_knowledge(
     payload: DocumentIngestRequest,
     db: AsyncSession = Depends(get_db)
 ):
+    """Search the knowledge base using semantic similarity."""
     start_time = time.time()
     
-    # 1. Vettorializziamo la domanda dell'utente
-    print(f"🔎 Domanda utente: {payload.content}")
+    logger.info(f"Search query: {payload.content[:50]}...")
     query_vector = embedding_service.get_embedding(payload.content)
     
-    # 2. RICERCA NEL DB con calcolo distanza
-    # cosine_distance: 0 = identico, 2 = opposto
-    # similarity = 1 - distance (range: -1 a 1, ma per vettori normalizzati: 0 a 1)
-    from src.config import settings
-    
+    # Query with distance calculation
     distance_col = Document.embedding.cosine_distance(query_vector).label("distance")
     stmt = select(Document, distance_col).order_by(distance_col).limit(settings.RAG_TOP_K)
     
     result = await db.execute(stmt)
     rows = result.all()
     
-    # 3. Formattiamo i risultati con score reale e threshold
+    # Format results with threshold filtering
     results_list = []
     for row in rows:
-        doc = row[0]  # Document object
-        distance = float(row[1])  # Distance value
-        similarity = round(1.0 - distance, 4)  # Convert to similarity
+        doc = row[0]
+        distance = float(row[1])
+        similarity = round(1.0 - distance, 4)
         
-        # Applica threshold
         if similarity >= settings.RAG_SIMILARITY_THRESHOLD:
-            print(f"   ✅ {doc.source_id} (similarity: {similarity:.2%})")
+            logger.debug(f"Match: {doc.source_id} ({similarity:.2%})")
             results_list.append(SearchResultItem(
                 id=str(doc.source_id),
                 content=str(doc.content),
                 score=similarity
             ))
         else:
-            print(f"   ❌ {doc.source_id} sotto threshold (similarity: {similarity:.2%})")
+            logger.debug(f"Below threshold: {doc.source_id} ({similarity:.2%})")
     
     process_time = time.time() - start_time
+    logger.info(f"Search completed: {len(results_list)} results in {process_time:.3f}s")
     
     return {
         "query": payload.content,

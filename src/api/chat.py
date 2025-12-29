@@ -14,6 +14,7 @@ from src.ml.services.embedding import embedding_service
 from src.ml.services.query_rewriter import rewrite_query
 from src.database import get_db, AsyncSessionLocal
 from src.models import Document, ChatSession, ChatMessage
+from src.core.auth import verify_api_key
 
 router = APIRouter()
 
@@ -134,7 +135,12 @@ async def llm_health():
         )
 
 
-@router.post("/chat", response_model=ChatResponse, summary="Chat con l'IA")
+@router.post(
+    "/chat",
+    response_model=ChatResponse,
+    summary="Chat con l'IA",
+    dependencies=[Depends(verify_api_key)]
+)
 async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     """
     Invia un messaggio e ricevi una risposta dall'IA.
