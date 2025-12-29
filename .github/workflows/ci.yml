@@ -1,35 +1,49 @@
-name: CI AI Engine
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  code-quality:
+  lint-and-test:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          
+          python-version: '3.10'
+      
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
+          version: 1.7.1
           virtualenvs-create: true
           virtualenvs-in-project: true
-
-      - name: Install Dependencies
+      
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+      
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
-        
-      - name: Run Linter (Ruff)
-        # Controlla se il codice è scritto bene
+      
+      - name: Install project
+        run: poetry install --no-interaction
+      
+      - name: Lint with Ruff
         run: poetry run ruff check src/
-
-      - name: Run Type Checker (Mypy)
-        # Controlla i tipi delle variabili
-        run: poetry run mypy src/
+      
+      - name: Type check with MyPy
+        run: poetry run mypy src/ --ignore-missing-imports
+      
+      - name: Run unit tests
+        run: PYTHONPATH=. poetry run pytest tests/test_chunker.py -v

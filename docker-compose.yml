@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -13,6 +11,29 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U scuderie_user -d scuderie_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: scuderie_api
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_USER=scuderie_user
+      - POSTGRES_PASSWORD=scuderie_password
+      - POSTGRES_DB=scuderie_db
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
 
 volumes:
   postgres_data:
+
+
