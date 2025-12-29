@@ -32,31 +32,42 @@ class LLMService:
     ) -> str:
         """
         Costruisce il prompt in formato ChatML per Llama 3.1.
-        Questo formato è FONDAMENTALE per far capire i ruoli al modello.
+        Include personalità ScuderieBot + RAG context + chat history.
         """
         parts = ["<|begin_of_text|>"]
         
-        # System Prompt
-        system_content = system_prompt or "Sei ScuderieBot, un assistente AI esperto di moda italiana."
+        # DEFINIZIONE DELLA PERSONALITÀ (Soft Fine-Tuning via Prompt)
+        default_system = """Sei ScuderieBot, il Senior Fashion Consultant delle Scuderie AI.
+Il tuo stile è: Sofisticato, Tecnico ma Accogliente, Essenziale (Silent Luxury).
+
+REGOLE DI RISPOSTA:
+1. Usa ESCLUSIVAMENTE le informazioni fornite nel CONTESTO qui sotto, se presente.
+2. Se il CONTESTO non contiene la risposta, dì chiaramente: "Mi dispiace, non ho informazioni specifiche su questo nei miei cataloghi attuali." NON inventare.
+3. Cita sempre i materiali e i dettagli tecnici se presenti.
+4. Non iniziare mai con "In base al contesto...". Rispondi direttamente come un esperto.
+5. Mantieni un tono professionale ma amichevole, come un consulente di alta moda."""
         
+        system_content = system_prompt or default_system
+        
+        # Inietta contesto RAG nel system prompt
         if context_docs:
             docs_text = "\n\n".join([f"[DOCUMENTO {i+1}]: {doc}" for i, doc in enumerate(context_docs)])
-            system_content += f"\n\nUsa SOLO i seguenti documenti per rispondere:\n{docs_text}"
+            system_content += f"\n\nCONTESTO RECUPERATO DAL DATABASE:\n{docs_text}"
         
-        parts.append(f"<|start_header_id|>system<|end_header_id|>\n{system_content}<|eot_id|>")
+        parts.append(f"<|start_header_id|>system<|end_header_id|>\n\n{system_content}<|eot_id|>")
         
-        # Chat History (Sliding Window)
+        # Chat History (Sliding Window - ultimi 6 messaggi)
         if chat_history:
-            for msg in chat_history[-6:]:  # Ultimi 6 messaggi
+            for msg in chat_history[-6:]:
                 role = msg.get("role", "user")
                 content = msg.get("content", "")
-                parts.append(f"<|start_header_id|>{role}<|end_header_id|>\n{content}<|eot_id|>")
+                parts.append(f"<|start_header_id|>{role}<|end_header_id|>\n\n{content}<|eot_id|>")
         
         # Current User Message
-        parts.append(f"<|start_header_id|>user<|end_header_id|>\n{user_message}<|eot_id|>")
+        parts.append(f"<|start_header_id|>user<|end_header_id|>\n\n{user_message}<|eot_id|>")
         
-        # Assistant turn start (il modello completerà da qui)
-        parts.append("<|start_header_id|>assistant<|end_header_id|>\n")
+        # Assistant generation trigger
+        parts.append("<|start_header_id|>assistant<|end_header_id|>\n\n")
         
         return "".join(parts)
     
