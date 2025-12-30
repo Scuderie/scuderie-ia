@@ -154,7 +154,7 @@ async def llm_health():
     dependencies=[Depends(verify_api_key)]
 )
 @limiter.limit(settings.RATE_LIMIT_CHAT)
-async def chat(request: ChatRequest, req: Request, db: AsyncSession = Depends(get_db)):
+async def chat(payload: ChatRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Invia un messaggio e ricevi una risposta dall'IA.
     - Se session_id è None, crea una nuova sessione
@@ -162,15 +162,15 @@ async def chat(request: ChatRequest, req: Request, db: AsyncSession = Depends(ge
     - Se use_rag=True, cerca prima nel database vettoriale
     """
     # 1. Gestione sessione
-    if request.session_id:
-        stmt = select(ChatSession).where(ChatSession.id == request.session_id)
+    if payload.session_id:
+        stmt = select(ChatSession).where(ChatSession.id == payload.session_id)
         result = await db.execute(stmt)
         session = result.scalar_one_or_none()
         if not session:
             raise HTTPException(status_code=404, detail="Sessione non trovata")
     else:
         # Crea nuova sessione con titolo dal primo messaggio
-        title = request.message[:50] + "..." if len(request.message) > 50 else request.message
+        title = payload.message[:50] + "..." if len(payload.message) > 50 else payload.message
         session = ChatSession(title=title)
         db.add(session)
         await db.commit()
@@ -180,7 +180,7 @@ async def chat(request: ChatRequest, req: Request, db: AsyncSession = Depends(ge
     user_msg = ChatMessage(
         session_id=session.id,
         role="user",
-        content=request.message
+        content=payload.message
     )
     db.add(user_msg)
     await db.commit()
@@ -207,7 +207,7 @@ async def chat(request: ChatRequest, req: Request, db: AsyncSession = Depends(ge
             from src.config import settings
             
             # Query rewriting per query ambigue
-            search_query = await rewrite_query(request.message, chat_history)
+            search_query = await rewrite_query(payload.message, chat_history)
             query_vector = embedding_service.get_embedding(search_query)
             
             # Query con calcolo distanza
@@ -232,8 +232,8 @@ async def chat(request: ChatRequest, req: Request, db: AsyncSession = Depends(ge
     # 5. Genera risposta
     try:
         response_text = await llm_service.generate(
-            user_message=request.message,
-            system_prompt=request.system_prompt,
+            user_message=payload.message,
+            system_prompt=payload.system_prompt,
             context_docs=context_docs if context_docs else None,
             chat_history=chat_history if chat_history else None
         )

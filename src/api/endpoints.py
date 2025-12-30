@@ -27,8 +27,8 @@ router = APIRouter()
 )
 @limiter.limit(settings.RATE_LIMIT_INGEST)
 async def ingest_document(
-    req: Request,
-    payload: DocumentIngestRequest, 
+    payload: DocumentIngestRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Ingest a document into the knowledge base with automatic chunking."""
