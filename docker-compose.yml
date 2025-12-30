@@ -28,10 +28,21 @@ services:
       - POSTGRES_PASSWORD=scuderie_password
       - POSTGRES_DB=scuderie_db
       - OLLAMA_HOST=http://host.docker.internal:11434
+      - REDIS_URL=redis://redis:6379
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: scuderie_redis
+    ports:
+      - "6379:6379"
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
 
 volumes:
   postgres_data:
