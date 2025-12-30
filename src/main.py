@@ -11,7 +11,7 @@ app = FastAPI(title=settings.PROJECT_NAME)
 origins = [
     "http://localhost:4200",    # Angular Default
     "http://127.0.0.1:4200",
-    "http://localhost:8000",  
+    "http://192.168.0.182:8000",  
     "*"                         # Utile per testare se stessi
     # Se Lorenzo è su un altro PC nella stessa rete, aggiungi qui il suo IP
     # es: "http://192.168.1.XX:4200"
