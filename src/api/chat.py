@@ -15,6 +15,9 @@ from src.ml.services.query_rewriter import rewrite_query
 from src.database import get_db, AsyncSessionLocal
 from src.models import Document, ChatSession, ChatMessage
 from src.core.auth import verify_api_key
+from src.core.rate_limit import limiter
+from src.config import settings
+from fastapi import Request
 
 router = APIRouter()
 
@@ -150,7 +153,8 @@ async def llm_health():
     summary="Chat con l'IA",
     dependencies=[Depends(verify_api_key)]
 )
-async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_CHAT)
+async def chat(request: ChatRequest, req: Request, db: AsyncSession = Depends(get_db)):
     """
     Invia un messaggio e ricevi una risposta dall'IA.
     - Se session_id è None, crea una nuova sessione

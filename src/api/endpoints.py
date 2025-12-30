@@ -14,6 +14,8 @@ from src.models import Document
 from src.config import settings
 from src.core.logging_config import logger
 from src.core.auth import verify_api_key
+from src.core.rate_limit import limiter
+from fastapi import Request
 
 router = APIRouter()
 
@@ -23,7 +25,9 @@ router = APIRouter()
     summary="Carica e vettorializza un documento",
     dependencies=[Depends(verify_api_key)]
 )
+@limiter.limit(settings.RATE_LIMIT_INGEST)
 async def ingest_document(
+    req: Request,
     payload: DocumentIngestRequest, 
     db: AsyncSession = Depends(get_db)
 ):

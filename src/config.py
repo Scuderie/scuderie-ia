@@ -17,6 +17,14 @@ class Settings(BaseSettings):
     RAG_SIMILARITY_THRESHOLD: float = 0.5  # Minima similarità per includere (0-1)
     RAG_TOP_K: int = 3  # Massimo documenti da restituire
     
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_DEFAULT: str = "100/hour"
+    RATE_LIMIT_CHAT: str = "10/minute"
+    RATE_LIMIT_INGEST: str = "50/hour"
+    RATE_LIMIT_SEARCH: str = "100/minute"
+    REDIS_URL: str = "memory://"  # Prod: redis://redis:6379
+    
     # --- MODIFICATO PER COMBACIARE COL VOSTRO DOCKER ---
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_USER: str = "scuderie_user"      # Era "postgres"

@@ -1,10 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware # <--- FONDAMENTALE
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from src.config import settings
 from src.api.endpoints import router as api_router
 from src.api.chat import router as chat_router
+from src.core.rate_limit import limiter
 
 app = FastAPI(title=settings.PROJECT_NAME)
+
+# Rate Limiter State
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # --- CONFIGURAZIONE CORS (Il passaporto per Angular) ---
 # Senza questo, il browser di Lorenzo bloccherà le richieste
